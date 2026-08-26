@@ -1,0 +1,97 @@
+﻿================================================================================
+  PROJECT STRUCTURE — DuetMeal Android App
+================================================================================
+
+App Name        : DuetMeal
+Package ID      : com.example.duetmeal
+Language        : Kotlin
+UI Framework    : Jetpack Compose + Material 3
+Min SDK         : 24 (Android 7.0 Nougat)
+Target SDK      : 36
+Compile SDK     : 36
+Version         : 1.0 (versionCode 1)
+Build System    : Gradle (Kotlin DSL)
+API URL Config  : app/src/main/java/com/example/duetmeal/network/ApiConfig.kt
+
+================================================================================
+  DIRECTORY TREE
+================================================================================
+
+new app/                                  <- Project Root
+|
++-- app/                                  <- Application Module
+|   +-- build.gradle.kts                  <- App-level build config (Retrofit, Compose, OkHttp)
+|   +-- src/
+|       +-- main/
+|       |   +-- AndroidManifest.xml       <- Permissions (INTERNET) & cleartext config
+|       |   +-- java/
+|       |   |   +-- com/example/duetmeal/
+|       |   |       +-- MainActivity.kt   <- Navigation Host, Auth-state route switching
+|       |   |       +-- network/
+|       |   |       |   +-- ApiConfig.kt      <- ?? SINGLE SOURCE OF TRUTH FOR API IP/URL
+|       |   |       |   +-- ApiService.kt     <- Retrofit API endpoint definitions
+|       |   |       |   +-- RetrofitClient.kt <- Retrofit instance + Auth Bearer Interceptor
+|       |   |       +-- data/
+|       |   |       |   +-- DuetMealRepository.kt <- API repository layer (Result wrapper)
+|       |   |       |   +-- DuetMealViewModel.kt  <- Shared StateFlows & UI action handlers
+|       |   |       |   +-- model/
+|       |   |       |       +-- User.kt           <- User profile & Auth request/response
+|       |   |       |       +-- Wallet.kt         <- Canteen wallet & recharge models
+|       |   |       |       +-- Booking.kt        <- Meal booking data class
+|       |   |       |       +-- BookingRequest.kt <- Meal booking request body
+|       |   |       |       +-- HistoryItem.kt    <- Meal history entries
+|       |   |       |       +-- Transaction.kt    <- Transactions & summary statistics
+|       |   |       |       +-- Notice.kt         <- Notice board bulletins
+|       |   |       |       +-- TodayMeal.kt      <- Daily menu schedule & cutoff
+|       |   |       +-- ui/
+|       |   |           +-- components/
+|       |   |           |   +-- BottomNavigationBar.kt <- Floating Profile bottom bar
+|       |   |           +-- screens/
+|       |   |           |   +-- LoginScreen.kt         <- ?? DUET Branded Login page
+|       |   |           |   +-- HomeScreen.kt          <- Dashboard & live wallet/menu
+|       |   |           |   +-- BookingScreen.kt       <- Date-range & guest meal booking
+|       |   |           |   +-- HistoryScreen.kt       <- Filterable meal history
+|       |   |           |   +-- NoticesScreen.kt       <- Categorized bulletins
+|       |   |           |   +-- PaymentsScreen.kt      <- Wallet transactions & stats
+|       |   |           |   +-- ProfileScreen.kt       <- Profile edit, prefs & logout
+|       |   |           +-- theme/
+|       |   |               +-- Color.kt               <- DUET green/gold palette
+|       |   |               +-- Theme.kt               <- MaterialTheme configuration
+|       |   +-- res/
+|       |       +-- drawable/
+|       |       |   +-- duet_logo.png
+|       |       +-- values/
+|       |           +-- colors.xml, strings.xml, themes.xml
+|       +-- androidTest/
+|       +-- test/
+|
++-- gradle/
+|   +-- libs.versions.toml                <- Version catalog (Retrofit, OkHttp, Compose)
++-- build.gradle.kts
++-- settings.gradle.kts
++-- gradle.properties
++-- project_structure.txt                 <- This file
+
+================================================================================
+  NAVIGATION STRUCTURE  (Jetpack Compose Navigation)
+================================================================================
+
+  Route: "login"      -> LoginScreen.kt (Auth entry point)
+  Route: "home"       -> HomeScreen.kt (Dashboard)
+  Route: "booking"    -> BookingScreen.kt
+  Route: "history"    -> HistoryScreen.kt
+  Route: "payments"   -> PaymentsScreen.kt
+  Route: "notices"    -> NoticesScreen.kt
+  Route: "profile"    -> ProfileScreen.kt
+
+================================================================================
+  WHERE TO CHANGE THE API IP / SERVER
+================================================================================
+
+  File: [app/src/main/java/com/example/duetmeal/network/ApiConfig.kt]
+  Line: const val BASE_URL = "http://192.168.10.12/duetmealapi/user/"
+
+  - Emulator:       "http://192.168.10.12/duetmealapi/user/"
+  - Physical Phone: "http://<YOUR_PC_LOCAL_IP>/duetmealapi/user/"
+  - Live Server:    "https://<YOUR_DOMAIN>/duetmealapi/user/"
+
