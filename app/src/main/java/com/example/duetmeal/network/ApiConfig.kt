@@ -9,5 +9,5 @@ object ApiConfig {
     var authToken: String? = null
 
     /** Current logged-in user ID (updated dynamically after login) */
-    var currentUserId: String = "1"
+    var currentUserId: String = "usr_fazlul"
 }

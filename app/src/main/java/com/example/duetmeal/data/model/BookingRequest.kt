@@ -9,5 +9,7 @@ data class BookingRequest(
     val endDate: String,         // "YYYY-MM-DD"
     val includeLunch: Boolean,
     val includeDinner: Boolean,
-    val guestCount: Int
+    val guestCount: Int = 0,
+    val lunchGuestCount: Int = guestCount,
+    val dinnerGuestCount: Int = guestCount
 )

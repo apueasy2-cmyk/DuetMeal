@@ -40,6 +40,17 @@ data class LoginData(
 
 /** Response from POST /auth/login */
 data class LoginResponse(
+    val id: String? = null,
+    @SerializedName("fullName", alternate = ["full_name", "name"])
+    val fullName: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    val initials: String? = null,
+    @SerializedName("residentType", alternate = ["resident_type"])
+    val residentType: String? = null,
+    @SerializedName("userType", alternate = ["user_type"])
+    val userType: String? = null,
+    val preferences: UserPreferences? = null,
     val status: String? = null,
     val message: String? = null,
     val token: String? = null,
@@ -47,7 +58,23 @@ data class LoginResponse(
     val data: LoginData? = null
 ) {
     fun getEffectiveToken(): String? = token ?: data?.token
-    fun getEffectiveUser(): User? = user ?: data?.user
+    fun getEffectiveUser(): User? {
+        if (user != null) return user
+        if (data?.user != null) return data.user
+        if (!id.isNullOrEmpty()) {
+            return User(
+                id = id,
+                fullName = fullName ?: "",
+                email = email ?: "",
+                phone = phone ?: "",
+                initials = initials ?: "",
+                residentType = residentType ?: "inside",
+                userType = userType ?: "teacher",
+                preferences = preferences ?: UserPreferences()
+            )
+        }
+        return null
+    }
 }
 
 /** Response from POST /auth/logout */

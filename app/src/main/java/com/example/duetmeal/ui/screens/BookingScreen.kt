@@ -37,21 +37,68 @@ fun BookingScreen(
 ) {
     val context = LocalContext.current
     val wallet by viewModel.wallet.collectAsState()
-    var selectedMonth by remember { mutableStateOf("August 2026") }
 
-    var startDay by remember { mutableIntStateOf(10) }
-    var endDay by remember { mutableIntStateOf(14) }
+    // Dynamic Month & Year state
+    var currentCalendar by remember { mutableStateOf(java.util.Calendar.getInstance()) }
+    val currentYear = currentCalendar.get(java.util.Calendar.YEAR)
+    val currentMonthIndex = currentCalendar.get(java.util.Calendar.MONTH) // 0-based
+
+    val monthName = java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.ENGLISH).format(currentCalendar.time)
+    val monthShort = java.text.SimpleDateFormat("MMM", java.util.Locale.ENGLISH).format(currentCalendar.time)
+
+    // Calculate days in current month & first day of week
+    val maxDaysInMonth = remember(currentYear, currentMonthIndex) {
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.YEAR, currentYear)
+            set(java.util.Calendar.MONTH, currentMonthIndex)
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+        }
+        cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+    }
+
+    // 1 (Sunday) to 7 (Saturday) -> convert to Mon=0, Sun=6
+    val firstDayOfWeekOffset = remember(currentYear, currentMonthIndex) {
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.YEAR, currentYear)
+            set(java.util.Calendar.MONTH, currentMonthIndex)
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+        }
+        val dow = cal.get(java.util.Calendar.DAY_OF_WEEK) // 1=Sun, 2=Mon...
+        if (dow == java.util.Calendar.SUNDAY) 6 else dow - 2
+    }
+
+    val prevMonthDaysCount = remember(currentYear, currentMonthIndex) {
+        val cal = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.YEAR, currentYear)
+            set(java.util.Calendar.MONTH, currentMonthIndex - 1)
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+        }
+        cal.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+    }
+
+    val todayCalendar = remember { java.util.Calendar.getInstance() }
+    val isViewingCurrentMonth = currentYear == todayCalendar.get(java.util.Calendar.YEAR) &&
+            currentMonthIndex == todayCalendar.get(java.util.Calendar.MONTH)
+    val todayDay = if (isViewingCurrentMonth) todayCalendar.get(java.util.Calendar.DAY_OF_MONTH) else 1
+
+    var startDay by remember(currentYear, currentMonthIndex) {
+        mutableIntStateOf(todayDay.coerceAtMost(maxDaysInMonth))
+    }
+    var endDay by remember(currentYear, currentMonthIndex) {
+        mutableIntStateOf((todayDay + 3).coerceAtMost(maxDaysInMonth))
+    }
     var isSelectingEnd by remember { mutableStateOf(false) }
 
     var isLunchSelected by remember { mutableStateOf(true) }
     var isDinnerSelected by remember { mutableStateOf(true) }
-    var guestCount by remember { mutableIntStateOf(1) }
+    var lunchGuestCount by remember { mutableIntStateOf(0) }
+    var dinnerGuestCount by remember { mutableIntStateOf(0) }
 
     val daysCount = if (startDay > 0 && endDay >= startDay) (endDay - startDay + 1) else 1
-    val mealsPerDay = (if (isLunchSelected) 1 else 0) + (if (isDinnerSelected) 1 else 0)
-    val totalPeople = 1 + guestCount
+    val lunchTotalPeople = if (isLunchSelected) (1 + lunchGuestCount) else 0
+    val dinnerTotalPeople = if (isDinnerSelected) (1 + dinnerGuestCount) else 0
     val pricePerMeal = 90.0
-    val totalRequired = daysCount * mealsPerDay * totalPeople * pricePerMeal
+    val totalRequired = daysCount * (lunchTotalPeople + dinnerTotalPeople) * pricePerMeal
     val availableBalance = wallet?.availableBalance ?: 1090.0
 
     Column(
@@ -93,32 +140,51 @@ fun BookingScreen(
                 }
             }
 
+            // Interactive Month Selector with Prev/Next buttons
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
                     .background(Color(0xFFF8FAFC))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .padding(horizontal = 6.dp, vertical = 4.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.ChevronLeft,
-                        contentDescription = null,
-                        tint = Muted,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    IconButton(
+                        onClick = {
+                            val newCal = currentCalendar.clone() as java.util.Calendar
+                            newCal.add(java.util.Calendar.MONTH, -1)
+                            currentCalendar = newCal
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ChevronLeft,
+                            contentDescription = "Previous Month",
+                            tint = Ink,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                     Text(
-                        text = selectedMonth,
-                        fontSize = 11.sp,
+                        text = monthName,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Ink,
-                        modifier = Modifier.padding(horizontal = 4.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp)
                     )
-                    Icon(
-                        imageVector = Icons.Filled.ChevronRight,
-                        contentDescription = null,
-                        tint = Muted,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    IconButton(
+                        onClick = {
+                            val newCal = currentCalendar.clone() as java.util.Calendar
+                            newCal.add(java.util.Calendar.MONTH, 1)
+                            currentCalendar = newCal
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ChevronRight,
+                            contentDescription = "Next Month",
+                            tint = Ink,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
@@ -151,8 +217,15 @@ fun BookingScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            val monthDays = (27..31).map { Pair(it, false) } + (1..31).map { Pair(it, true) }
-            val rows = monthDays.chunked(7)
+            // Generate full calendar grid for the selected month
+            val prevMonthLeadingDays = ((prevMonthDaysCount - firstDayOfWeekOffset + 1)..prevMonthDaysCount).map { Pair(it, false) }
+            val currentMonthGridDays = (1..maxDaysInMonth).map { Pair(it, true) }
+            val totalCellsSoFar = prevMonthLeadingDays.size + currentMonthGridDays.size
+            val trailingDaysCount = if (totalCellsSoFar % 7 != 0) 7 - (totalCellsSoFar % 7) else 0
+            val nextMonthTrailingDays = (1..trailingDaysCount).map { Pair(it, false) }
+
+            val allMonthDays = prevMonthLeadingDays + currentMonthGridDays + nextMonthTrailingDays
+            val rows = allMonthDays.chunked(7)
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 rows.forEach { row ->
@@ -256,7 +329,7 @@ fun BookingScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (startDay == endDay) "August $startDay, 2026" else "Aug $startDay – Aug $endDay, 2026",
+                                text = if (startDay == endDay) "$monthShort $startDay, $currentYear" else "$monthShort $startDay – $monthShort $endDay, $currentYear",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = BrandDark
@@ -286,22 +359,22 @@ fun BookingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Start: Aug $startDay",
+                            text = "Start: $monthShort $startDay",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Ink,
-                            modifier = Modifier.width(85.dp)
+                            modifier = Modifier.width(95.dp)
                         )
                         Slider(
-                            value = startDay.toFloat(),
+                            value = startDay.toFloat().coerceIn(1f, maxDaysInMonth.toFloat()),
                             onValueChange = {
-                                startDay = it.toInt()
+                                startDay = it.toInt().coerceIn(1, maxDaysInMonth)
                                 if (endDay < startDay) {
                                     endDay = startDay
                                 }
                             },
-                            valueRange = 1f..31f,
-                            steps = 29,
+                            valueRange = 1f..maxDaysInMonth.toFloat(),
+                            steps = if (maxDaysInMonth > 2) maxDaysInMonth - 2 else 0,
                             modifier = Modifier.weight(1f),
                             colors = SliderDefaults.colors(
                                 thumbColor = BrandDark,
@@ -317,22 +390,22 @@ fun BookingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "End: Aug $endDay",
+                            text = "End: $monthShort $endDay",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Ink,
-                            modifier = Modifier.width(85.dp)
+                            modifier = Modifier.width(95.dp)
                         )
                         Slider(
-                            value = endDay.toFloat(),
+                            value = endDay.toFloat().coerceIn(1f, maxDaysInMonth.toFloat()),
                             onValueChange = {
-                                endDay = it.toInt()
+                                endDay = it.toInt().coerceIn(1, maxDaysInMonth)
                                 if (startDay > endDay) {
                                     startDay = endDay
                                 }
                             },
-                            valueRange = 1f..31f,
-                            steps = 29,
+                            valueRange = 1f..maxDaysInMonth.toFloat(),
+                            steps = if (maxDaysInMonth > 2) maxDaysInMonth - 2 else 0,
                             modifier = Modifier.weight(1f),
                             colors = SliderDefaults.colors(
                                 thumbColor = BrandPrimary,
@@ -354,7 +427,7 @@ fun BookingScreen(
                             "3 Days" to 3,
                             "5 Days" to 5,
                             "7 Days" to 7,
-                            "Rest of Month" to (31 - startDay + 1)
+                            "Rest of Month" to (maxDaysInMonth - startDay + 1)
                         ).forEach { (label, duration) ->
                             val isSelected = daysCount == duration
                             Box(
@@ -362,7 +435,7 @@ fun BookingScreen(
                                     .clip(RoundedCornerShape(50))
                                     .background(if (isSelected) BrandDark else Color(0xFFF1F5F9))
                                     .clickable {
-                                        endDay = (startDay + duration - 1).coerceAtMost(31)
+                                        endDay = (startDay + duration - 1).coerceAtMost(maxDaysInMonth)
                                         isSelectingEnd = false
                                     }
                                     .padding(horizontal = 10.dp, vertical = 5.dp)
@@ -488,54 +561,110 @@ fun BookingScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Guest Meals Counter
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(text = "Guest Meals", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ink)
-                            Text(text = "Same menu as yours", fontSize = 11.sp, color = Muted)
-                        }
-
+                    if (isLunchSelected) {
+                        Spacer(modifier = Modifier.height(14.dp))
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(Color(0xFFF1F5F9))
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .shadow(1.dp, CircleShape)
-                                    .clip(CircleShape)
-                                    .background(Color.White)
-                                    .clickable { if (guestCount > 0) guestCount-- },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(imageVector = Icons.Filled.Remove, contentDescription = "Decrease", modifier = Modifier.size(14.dp), tint = Ink)
+                            Column {
+                                Text(text = "Lunch Guest Meals", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                                Text(text = "Extra lunch for guests", fontSize = 11.sp, color = Muted)
                             }
 
-                            Text(
-                                text = guestCount.toString(),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Ink,
-                                modifier = Modifier.padding(horizontal = 12.dp)
-                            )
-
-                            Box(
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .size(28.dp)
-                                    .shadow(1.dp, CircleShape)
-                                    .clip(CircleShape)
-                                    .background(Color.White)
-                                    .clickable { if (guestCount < 10) guestCount++ },
-                                contentAlignment = Alignment.Center
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color(0xFFF1F5F9))
+                                    .padding(horizontal = 6.dp, vertical = 4.dp)
                             ) {
-                                Icon(imageVector = Icons.Filled.Add, contentDescription = "Increase", modifier = Modifier.size(14.dp), tint = Ink)
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .shadow(1.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .clickable { if (lunchGuestCount > 0) lunchGuestCount-- },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(imageVector = Icons.Filled.Remove, contentDescription = "Decrease Lunch Guests", modifier = Modifier.size(14.dp), tint = Ink)
+                                }
+
+                                Text(
+                                    text = lunchGuestCount.toString(),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ink,
+                                    modifier = Modifier.padding(horizontal = 12.dp)
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .shadow(1.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .clickable { if (lunchGuestCount < 10) lunchGuestCount++ },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Increase Lunch Guests", modifier = Modifier.size(14.dp), tint = Ink)
+                                }
+                            }
+                        }
+                    }
+
+                    if (isDinnerSelected) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(text = "Dinner Guest Meals", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Ink)
+                                Text(text = "Extra dinner for guests", fontSize = 11.sp, color = Muted)
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color(0xFFF1F5F9))
+                                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .shadow(1.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .clickable { if (dinnerGuestCount > 0) dinnerGuestCount-- },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(imageVector = Icons.Filled.Remove, contentDescription = "Decrease Dinner Guests", modifier = Modifier.size(14.dp), tint = Ink)
+                                }
+
+                                Text(
+                                    text = dinnerGuestCount.toString(),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ink,
+                                    modifier = Modifier.padding(horizontal = 12.dp)
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .shadow(1.dp, CircleShape)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .clickable { if (dinnerGuestCount < 10) dinnerGuestCount++ },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Increase Dinner Guests", modifier = Modifier.size(14.dp), tint = Ink)
+                                }
                             }
                         }
                     }
@@ -577,17 +706,23 @@ fun BookingScreen(
 
                     Button(
                         onClick = {
+                            val bookingYearMonthStr = String.format("%04d-%02d", currentYear, currentMonthIndex + 1)
+                            val formattedStartDate = "$bookingYearMonthStr-${String.format("%02d", startDay)}"
+                            val formattedEndDate = "$bookingYearMonthStr-${String.format("%02d", endDay)}"
+
                             viewModel.createBooking(
                                 request = BookingRequest(
                                     userId = viewModel.userId,
-                                    startDate = "2026-08-${String.format("%02d", startDay)}",
-                                    endDate = "2026-08-${String.format("%02d", endDay)}",
+                                    startDate = formattedStartDate,
+                                    endDate = formattedEndDate,
                                     includeLunch = isLunchSelected,
                                     includeDinner = isDinnerSelected,
-                                    guestCount = guestCount
+                                    guestCount = lunchGuestCount + dinnerGuestCount,
+                                    lunchGuestCount = lunchGuestCount,
+                                    dinnerGuestCount = dinnerGuestCount
                                 ),
                                 onSuccess = {
-                                    Toast.makeText(context, "Meals successfully booked for August $startDay - $endDay!", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Meals successfully booked for $formattedStartDate to $formattedEndDate!", Toast.LENGTH_LONG).show()
                                     onBack()
                                 },
                                 onError = { error ->
