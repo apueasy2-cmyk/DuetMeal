@@ -11,6 +11,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -22,10 +28,30 @@ import com.example.duetmeal.ui.components.DUETBottomNavigationBar
 import com.example.duetmeal.ui.components.Screen
 import com.example.duetmeal.ui.screens.*
 import com.example.duetmeal.ui.theme.DUETMealTheme
-
+import android.os.Build
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.duetmeal.util.NotificationHelper
 class MainActivity : ComponentActivity() {
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        // Handle if needed
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        NotificationHelper.createNotificationChannel(this)
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
         enableEdgeToEdge()
         setContent {
             DUETMealTheme {
@@ -45,6 +71,24 @@ fun DUETMealApp() {
     val viewModel: DuetMealViewModel = viewModel()
     val user by viewModel.user.collectAsState()
     val initials = user?.initials ?: "FH"
+
+    // Notice Notification logic
+    val notices by viewModel.notices.collectAsState()
+    val context = LocalContext.current
+    var lastNoticeIds by remember { mutableStateOf(setOf<String>()) }
+
+    LaunchedEffect(notices) {
+        val newNoticeIds = notices.map { it.id }.toSet()
+        if (lastNoticeIds.isNotEmpty()) {
+            val newUnread = notices.filter { it.isUnread && it.id !in lastNoticeIds }
+            if (newUnread.isNotEmpty()) {
+                val title = if (newUnread.size == 1) newUnread.first().title else "New Notices"
+                val content = if (newUnread.size == 1) newUnread.first().content else "You have ${newUnread.size} new notices"
+                com.example.duetmeal.util.NotificationHelper.showNoticeNotification(context, title, content)
+            }
+        }
+        lastNoticeIds = newNoticeIds
+    }
 
     // Hide bottom navigation bar on Login screen
     val shouldShowBottomBar = currentRoute != Screen.Login.route
@@ -157,6 +201,18 @@ fun DUETMealApp() {
                         },
                         onNavigate = { route ->
                             navController.navigate(route)
+                        }
+                    )
+                }
+
+                // ── Notice Detail Screen ──────────────────────────────────────
+                composable(Screen.NoticeDetail.route) { backStackEntry ->
+                    val noticeId = backStackEntry.arguments?.getString("noticeId") ?: ""
+                    NoticeDetailScreen(
+                        noticeId = noticeId,
+                        viewModel = viewModel,
+                        onBack = {
+                            navController.popBackStack()
                         }
                     )
                 }

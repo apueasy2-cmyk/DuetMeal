@@ -59,14 +59,12 @@ interface ApiService {
     suspend fun createBooking(@Body request: BookingRequest): Booking
 
     /**
-     * GET /bookings — User's bookings for a given month
+     * GET /bookings — User's ALL bookings (no month filter supported by this server)
      * @param userId User ID
-     * @param month  Month in "YYYY-MM" format (e.g., "2026-08")
      */
     @GET("bookings")
     suspend fun getBookings(
-        @Query("userId") userId: String,
-        @Query("month") month: String
+        @Query("userId") userId: String
     ): List<Booking>
 
     /** DELETE /bookings/{bookingId} — Cancel a booking (before cutoff) */

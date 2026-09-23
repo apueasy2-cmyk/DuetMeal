@@ -28,6 +28,9 @@ object RetrofitClient {
         }
 
         builder.header("Accept", "application/json")
+        // Force fresh data — bypass any server-side or intermediate HTTP cache
+        builder.header("Cache-Control", "no-cache, no-store, must-revalidate")
+        builder.header("Pragma", "no-cache")
         chain.proceed(builder.build())
     }
 

@@ -37,11 +37,16 @@ fun BookingScreen(
 ) {
     val context = LocalContext.current
     val wallet by viewModel.wallet.collectAsState()
+    val bookings by viewModel.bookings.collectAsState()
 
     // Dynamic Month & Year state
     var currentCalendar by remember { mutableStateOf(java.util.Calendar.getInstance()) }
     val currentYear = currentCalendar.get(java.util.Calendar.YEAR)
     val currentMonthIndex = currentCalendar.get(java.util.Calendar.MONTH) // 0-based
+
+    LaunchedEffect(Unit) {
+        viewModel.loadBookings()
+    }
 
     val monthName = java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.ENGLISH).format(currentCalendar.time)
     val monthShort = java.text.SimpleDateFormat("MMM", java.util.Locale.ENGLISH).format(currentCalendar.time)
@@ -87,19 +92,62 @@ fun BookingScreen(
     var endDay by remember(currentYear, currentMonthIndex) {
         mutableIntStateOf((todayDay + 3).coerceAtMost(maxDaysInMonth))
     }
-    var isSelectingEnd by remember { mutableStateOf(false) }
 
     var isLunchSelected by remember { mutableStateOf(true) }
     var isDinnerSelected by remember { mutableStateOf(true) }
     var lunchGuestCount by remember { mutableIntStateOf(0) }
     var dinnerGuestCount by remember { mutableIntStateOf(0) }
+    var hasUserSelected by remember(currentYear, currentMonthIndex) { mutableStateOf(false) }
 
     val daysCount = if (startDay > 0 && endDay >= startDay) (endDay - startDay + 1) else 1
-    val lunchTotalPeople = if (isLunchSelected) (1 + lunchGuestCount) else 0
-    val dinnerTotalPeople = if (isDinnerSelected) (1 + dinnerGuestCount) else 0
     val pricePerMeal = 90.0
-    val totalRequired = daysCount * (lunchTotalPeople + dinnerTotalPeople) * pricePerMeal
-    val availableBalance = wallet?.availableBalance ?: 1090.0
+
+    // Reactive booking computation — recalculates whenever bookings, startDay, endDay or meal selections change
+    data class RangeBookingInfo(
+        val alreadyBookedLunchDays: Int,
+        val alreadyBookedDinnerDays: Int,
+        val lunchDaysToCharge: Int,
+        val dinnerDaysToCharge: Int,
+        val totalRequired: Double
+    )
+
+    val rangeInfo by remember(bookings, startDay, endDay, isLunchSelected, isDinnerSelected, lunchGuestCount, dinnerGuestCount, currentYear, currentMonthIndex) {
+        derivedStateOf {
+            var alreadyLunch = 0
+            var alreadyDinner = 0
+            var chargeLunch = 0
+            var chargeDinner = 0
+
+            if (startDay > 0 && endDay >= startDay) {
+                for (day in startDay..endDay) {
+                    val dateStr = String.format("%04d-%02d-%02d", currentYear, currentMonthIndex + 1, day)
+                    val dayBookings = bookings.filter { b ->
+                        b.status == "active" &&
+                        dateStr >= b.startDate.take(10) &&
+                        dateStr <= b.endDate.take(10)
+                    }
+                    val hasLunch = dayBookings.any { it.includeLunch }
+                    val hasDinner = dayBookings.any { it.includeDinner }
+
+                    if (hasLunch) alreadyLunch++
+                    if (hasDinner) alreadyDinner++
+
+                    if (isLunchSelected && !hasLunch) chargeLunch += (1 + lunchGuestCount)
+                    if (isDinnerSelected && !hasDinner) chargeDinner += (1 + dinnerGuestCount)
+                }
+            }
+
+            RangeBookingInfo(
+                alreadyBookedLunchDays = alreadyLunch,
+                alreadyBookedDinnerDays = alreadyDinner,
+                lunchDaysToCharge = chargeLunch,
+                dinnerDaysToCharge = chargeDinner,
+                totalRequired = (chargeLunch + chargeDinner) * pricePerMeal
+            )
+        }
+    }
+
+    val availableBalance = wallet?.totalBalance ?: 1090.0
 
     Column(
         modifier = Modifier
@@ -198,7 +246,32 @@ fun BookingScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            // Calendar Grid Days Header
+            // Calendar Legend + Days Header
+            // Legend
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(StatusAmberBg))
+                    Text("Partial", fontSize = 9.sp, color = StatusAmberText, fontWeight = FontWeight.Bold)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(StatusRedBg))
+                    Text("Fully Booked", fontSize = 9.sp, color = StatusRedText, fontWeight = FontWeight.Bold)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(BrandDark))
+                    Text("Selected", fontSize = 9.sp, color = BrandDark, fontWeight = FontWeight.Bold)
+                }
+                if (bookings.isEmpty()) {
+                    Text("(Loading...)", fontSize = 9.sp, color = Muted)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Days of week header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -214,8 +287,6 @@ fun BookingScreen(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
 
             // Generate full calendar grid for the selected month
             val prevMonthLeadingDays = ((prevMonthDaysCount - firstDayOfWeekOffset + 1)..prevMonthDaysCount).map { Pair(it, false) }
@@ -234,22 +305,47 @@ fun BookingScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         row.forEach { (dayNum, isCurrentMonth) ->
-                            val isSelectedStart = isCurrentMonth && dayNum == startDay
-                            val isSelectedEnd = isCurrentMonth && dayNum == endDay
-                            val isInRange = isCurrentMonth && dayNum in (startDay..endDay)
+                            val dateStr = String.format("%04d-%02d-%02d", currentYear, currentMonthIndex + 1, dayNum)
+                            
+                            val dayBookings = if (isCurrentMonth) bookings.filter { booking ->
+                                booking.status == "active" && 
+                                dateStr >= booking.startDate.take(10) && 
+                                dateStr <= booking.endDate.take(10)
+                            } else emptyList()
+                            
+                            val hasLunch = dayBookings.any { it.includeLunch }
+                            val hasDinner = dayBookings.any { it.includeDinner }
+                            
+                            val isFullyBooked = isCurrentMonth && hasLunch && hasDinner
+                            val isPartiallyBooked = isCurrentMonth && (hasLunch || hasDinner) && !isFullyBooked
+                            
+                            val isPastMonth = currentYear < todayCalendar.get(java.util.Calendar.YEAR) || (currentYear == todayCalendar.get(java.util.Calendar.YEAR) && currentMonthIndex < todayCalendar.get(java.util.Calendar.MONTH))
+                            val isPastDay = isPastMonth || (isViewingCurrentMonth && dayNum < todayCalendar.get(java.util.Calendar.DAY_OF_MONTH))
+                            val isSelectable = isCurrentMonth && !isPastDay && !isFullyBooked
+
+                            val isSelectedStart = isCurrentMonth && dayNum == startDay && !isFullyBooked && !isPastDay
+                            val isSelectedEnd = isCurrentMonth && dayNum == endDay && !isFullyBooked && !isPastDay
+                            val isInRange = isCurrentMonth && dayNum in (startDay..endDay) && !isFullyBooked && !isPastDay
 
                             val cellBg = when {
+                                isPastDay || !isCurrentMonth -> Color.Transparent
+                                isFullyBooked -> StatusRedBg
                                 isSelectedStart || isSelectedEnd -> BrandDark
+                                isPartiallyBooked -> StatusAmberBg
                                 isInRange -> Color(0xFFE7F3EA)
                                 else -> Color.Transparent
                             }
 
                             val textColor = when {
+                                !isCurrentMonth || isPastDay -> Color.LightGray
+                                isFullyBooked -> StatusRedText
                                 isSelectedStart || isSelectedEnd -> Color.White
+                                isPartiallyBooked -> StatusAmberText
                                 isInRange -> BrandDark
-                                !isCurrentMonth -> Color.LightGray
                                 else -> Ink
                             }
+
+                            val isToday = isViewingCurrentMonth && dayNum == todayDay
 
                             Box(
                                 modifier = Modifier
@@ -257,39 +353,32 @@ fun BookingScreen(
                                     .aspectRatio(1f)
                                     .clip(
                                         when {
+                                            isFullyBooked -> CircleShape
                                             isSelectedStart && isSelectedEnd -> CircleShape
                                             isSelectedStart -> RoundedCornerShape(topStart = 50.dp, bottomStart = 50.dp)
                                             isSelectedEnd -> RoundedCornerShape(topEnd = 50.dp, bottomEnd = 50.dp)
                                             isInRange -> RoundedCornerShape(0.dp)
+                                            isPartiallyBooked -> CircleShape
+                                            isToday -> CircleShape
                                             else -> CircleShape
                                         }
                                     )
                                     .background(cellBg)
-                                    .clickable(enabled = isCurrentMonth) {
-                                        if (!isSelectingEnd) {
-                                            // Start new selection
-                                            startDay = dayNum
-                                            endDay = dayNum
-                                            isSelectingEnd = true
-                                        } else {
-                                            // Choose end date
-                                            if (dayNum >= startDay) {
-                                                endDay = dayNum
-                                                isSelectingEnd = false
-                                            } else {
-                                                // If tapped earlier date, reset startDay to that date
-                                                startDay = dayNum
-                                                endDay = dayNum
-                                                isSelectingEnd = true
-                                            }
-                                        }
+                                    .then(
+                                        if (isToday) Modifier.border(2.dp, Color(0xFF10B981), CircleShape)
+                                        else Modifier
+                                    )
+                                    .clickable(enabled = isSelectable) {
+                                        startDay = dayNum
+                                        endDay = dayNum
+                                        hasUserSelected = true
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = dayNum.toString(),
                                     fontSize = 13.sp,
-                                    fontWeight = if (isSelectedStart || isSelectedEnd || isInRange) FontWeight.Bold else FontWeight.Medium,
+                                    fontWeight = if (isFullyBooked || isPartiallyBooked || isSelectedStart || isSelectedEnd || isInRange) FontWeight.Bold else FontWeight.Medium,
                                     color = textColor
                                 )
                             }
@@ -353,6 +442,8 @@ fun BookingScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    val minStartDay = if (isViewingCurrentMonth) todayDay else 1
+
                     // Start Date Slider Control
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -366,15 +457,16 @@ fun BookingScreen(
                             modifier = Modifier.width(95.dp)
                         )
                         Slider(
-                            value = startDay.toFloat().coerceIn(1f, maxDaysInMonth.toFloat()),
+                            value = startDay.toFloat().coerceIn(minStartDay.toFloat(), maxDaysInMonth.toFloat()),
                             onValueChange = {
-                                startDay = it.toInt().coerceIn(1, maxDaysInMonth)
+                                startDay = it.toInt().coerceIn(minStartDay, maxDaysInMonth)
                                 if (endDay < startDay) {
                                     endDay = startDay
                                 }
+                                hasUserSelected = true
                             },
-                            valueRange = 1f..maxDaysInMonth.toFloat(),
-                            steps = if (maxDaysInMonth > 2) maxDaysInMonth - 2 else 0,
+                            valueRange = minStartDay.toFloat()..maxDaysInMonth.toFloat(),
+                            steps = if (maxDaysInMonth - minStartDay > 0) maxDaysInMonth - minStartDay - 1 else 0,
                             modifier = Modifier.weight(1f),
                             colors = SliderDefaults.colors(
                                 thumbColor = BrandDark,
@@ -397,15 +489,13 @@ fun BookingScreen(
                             modifier = Modifier.width(95.dp)
                         )
                         Slider(
-                            value = endDay.toFloat().coerceIn(1f, maxDaysInMonth.toFloat()),
+                            value = endDay.toFloat().coerceIn(minStartDay.toFloat(), maxDaysInMonth.toFloat()),
                             onValueChange = {
-                                endDay = it.toInt().coerceIn(1, maxDaysInMonth)
-                                if (startDay > endDay) {
-                                    startDay = endDay
-                                }
+                                endDay = it.toInt().coerceIn(startDay, maxDaysInMonth)
+                                hasUserSelected = true
                             },
-                            valueRange = 1f..maxDaysInMonth.toFloat(),
-                            steps = if (maxDaysInMonth > 2) maxDaysInMonth - 2 else 0,
+                            valueRange = minStartDay.toFloat()..maxDaysInMonth.toFloat(),
+                            steps = if (maxDaysInMonth - minStartDay > 0) maxDaysInMonth - minStartDay - 1 else 0,
                             modifier = Modifier.weight(1f),
                             colors = SliderDefaults.colors(
                                 thumbColor = BrandPrimary,
@@ -436,7 +526,6 @@ fun BookingScreen(
                                     .background(if (isSelected) BrandDark else Color(0xFFF1F5F9))
                                     .clickable {
                                         endDay = (startDay + duration - 1).coerceAtMost(maxDaysInMonth)
-                                        isSelectingEnd = false
                                     }
                                     .padding(horizontal = 10.dp, vertical = 5.dp)
                             ) {
@@ -673,17 +762,91 @@ fun BookingScreen(
                     HorizontalDivider(color = Color(0xFFF1F5F9))
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Already Booked info banner (only shown when there are conflicts in range)
+                    val hasConflicts = hasUserSelected && (rangeInfo.alreadyBookedLunchDays > 0 || rangeInfo.alreadyBookedDinnerDays > 0)
+                    if (hasConflicts) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(StatusAmberBg)
+                                .padding(12.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Info,
+                                        contentDescription = null,
+                                        tint = StatusAmberText,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Already booked in this range:",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = StatusAmberText
+                                    )
+                                }
+                                if (rangeInfo.alreadyBookedLunchDays > 0) {
+                                    Text(
+                                        text = "• ${rangeInfo.alreadyBookedLunchDays} day(s) with Lunch already booked — skipped",
+                                        fontSize = 11.sp,
+                                        color = StatusAmberText
+                                    )
+                                }
+                                if (rangeInfo.alreadyBookedDinnerDays > 0) {
+                                    Text(
+                                        text = "• ${rangeInfo.alreadyBookedDinnerDays} day(s) with Dinner already booked — skipped",
+                                        fontSize = 11.sp,
+                                        color = StatusAmberText
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
                     // Price Breakdown
+                    if (isLunchSelected && rangeInfo.lunchDaysToCharge > 0) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Lunch (${rangeInfo.lunchDaysToCharge} meals)", fontSize = 12.sp, color = Muted)
+                            Text(
+                                text = "৳ ${String.format("%.2f", rangeInfo.lunchDaysToCharge * pricePerMeal)}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Ink
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    if (isDinnerSelected && rangeInfo.dinnerDaysToCharge > 0) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Dinner (${rangeInfo.dinnerDaysToCharge} meals)", fontSize = 12.sp, color = Muted)
+                            Text(
+                                text = "৳ ${String.format("%.2f", rangeInfo.dinnerDaysToCharge * pricePerMeal)}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Ink
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Total Required", fontSize = 13.sp, color = Muted)
+                        Text(text = "Total Required", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink)
                         Text(
-                            text = "৳ ${String.format("%.2f", totalRequired)}",
+                            text = "৳ ${String.format("%.2f", rangeInfo.totalRequired)}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Ink
+                            color = BrandDark
                         )
                     }
 
@@ -693,12 +856,12 @@ fun BookingScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Available Balance", fontSize = 13.sp, color = Muted)
+                        Text(text = "Total Balance", fontSize = 13.sp, color = Muted)
                         Text(
                             text = "৳ ${String.format("%.2f", availableBalance)}",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = StatusGreenText
+                            color = if (availableBalance >= rangeInfo.totalRequired) StatusGreenText else StatusRedText
                         )
                     }
 
@@ -722,11 +885,16 @@ fun BookingScreen(
                                     dinnerGuestCount = dinnerGuestCount
                                 ),
                                 onSuccess = {
-                                    Toast.makeText(context, "Meals successfully booked for $formattedStartDate to $formattedEndDate!", Toast.LENGTH_LONG).show()
+                                    val message = if (startDay == endDay) {
+                                        "Meal booked for $formattedStartDate"
+                                    } else {
+                                        "Meals booked from $formattedStartDate to $formattedEndDate"
+                                    }
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                                     onBack()
                                 },
                                 onError = { error ->
-                                    Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Booking Error - $error", Toast.LENGTH_LONG).show()
                                 }
                             )
                         },

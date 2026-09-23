@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.duetmeal.data.DuetMealViewModel
 import com.example.duetmeal.data.model.Notice
+import com.example.duetmeal.ui.components.Screen
 import com.example.duetmeal.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -148,7 +149,7 @@ fun NoticesScreen(
                         title = "August Meal Rate Finalized",
                         content = "The meal rate for August 2026 has been calculated at ৳88.10. Balance adjustments will be reflected in your next bill.",
                         timestamp = "2 hours ago",
-                        onAction = { Toast.makeText(context, "Opening August Meal Rate details...", Toast.LENGTH_SHORT).show() }
+                        onAction = { /* Handle action */ }
                     )
                     Spacer(modifier = Modifier.height(14.dp))
                 }
@@ -159,7 +160,7 @@ fun NoticesScreen(
                         title = "App Maintenance Notice",
                         content = "The Meal Management System will be offline for routine maintenance from 12:00 AM to 02:00 AM tonight.",
                         timestamp = "Yesterday, 4:30 PM", actionText = "Dismiss",
-                        onAction = { Toast.makeText(context, "Notice dismissed", Toast.LENGTH_SHORT).show() }
+                        onAction = { /* Handle action */ }
                     )
                     Spacer(modifier = Modifier.height(14.dp))
                 }
@@ -170,7 +171,7 @@ fun NoticesScreen(
                         title = "Guest Booking Policy Update",
                         content = "Starting from next week, guest bookings must be confirmed at least 24 hours in advance for dinner services.",
                         timestamp = "3 days ago", actionText = "Read more",
-                        onAction = { Toast.makeText(context, "Guest Booking Policy details opened", Toast.LENGTH_SHORT).show() }
+                        onAction = { /* Handle action */ }
                     )
                 }
             } else {
@@ -180,7 +181,7 @@ fun NoticesScreen(
                         notice = notice,
                         onAction = {
                             viewModel.markNoticeRead(notice.id)
-                            Toast.makeText(context, "Notice: ${notice.title}", Toast.LENGTH_SHORT).show()
+                            onNavigate(Screen.NoticeDetail.createRoute(notice.id))
                         }
                     )
                     if (index < filteredNotices.lastIndex) Spacer(modifier = Modifier.height(14.dp))

@@ -58,8 +58,8 @@ class DuetMealRepository {
     suspend fun getTodayMeal(): Result<TodayMeal> =
         runApi { api.getTodayMeal() }
 
-    suspend fun getBookings(userId: String, month: String): Result<List<Booking>> =
-        runApi { api.getBookings(userId, month) }
+    suspend fun getBookings(userId: String): Result<List<Booking>> =
+        runApi { api.getBookings(userId) }
 
     suspend fun createBooking(request: BookingRequest): Result<Booking> =
         runApi { api.createBooking(request) }

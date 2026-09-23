@@ -39,20 +39,77 @@ fun HomeScreen(
     onNavigate: (String) -> Unit
 ) {
     val context = LocalContext.current
-    var isLunchBooked by remember { mutableStateOf(true) }
-    var isDinnerBooked by remember { mutableStateOf(false) }
 
     // ── Observe API state ────────────────────────────────────────────────────
     val user by viewModel.user.collectAsState()
     val wallet by viewModel.wallet.collectAsState()
     val todayMeal by viewModel.todayMeal.collectAsState()
+    val bookings by viewModel.bookings.collectAsState()
 
     // Auto-refresh profile and data when HomeScreen loads
     LaunchedEffect(Unit) {
         viewModel.loadProfile()
         viewModel.loadWallet()
         viewModel.loadTodayMeal()
+        viewModel.loadBookings()
     }
+
+    // ── Today's booked status — mutable so UI can update instantly, synced from API ─
+    val todayDateStr = remember {
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ENGLISH)
+            .format(java.util.Calendar.getInstance().time)
+    }
+    val tomorrowDateStr = remember {
+        val cal = java.util.Calendar.getInstance()
+        cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ENGLISH).format(cal.time)
+    }
+    var isLunchBooked by remember { mutableStateOf(false) }
+    var isDinnerBooked by remember { mutableStateOf(false) }
+    var isTomorrowLunchBooked by remember { mutableStateOf(false) }
+    var isTomorrowDinnerBooked by remember { mutableStateOf(false) }
+
+    // Sync from real bookings whenever they load/change
+    LaunchedEffect(bookings) {
+        isLunchBooked = bookings.any { b ->
+            b.status == "active" &&
+            todayDateStr >= b.startDate.take(10) &&
+            todayDateStr <= b.endDate.take(10) &&
+            b.includeLunch
+        }
+        isDinnerBooked = bookings.any { b ->
+            b.status == "active" &&
+            todayDateStr >= b.startDate.take(10) &&
+            todayDateStr <= b.endDate.take(10) &&
+            b.includeDinner
+        }
+        isTomorrowLunchBooked = bookings.any { b ->
+            b.status == "active" &&
+            tomorrowDateStr >= b.startDate.take(10) &&
+            tomorrowDateStr <= b.endDate.take(10) &&
+            b.includeLunch
+        }
+        isTomorrowDinnerBooked = bookings.any { b ->
+            b.status == "active" &&
+            tomorrowDateStr >= b.startDate.take(10) &&
+            tomorrowDateStr <= b.endDate.take(10) &&
+            b.includeDinner
+        }
+    }
+
+    // Today's active booking IDs (needed for cancel)
+    val todayLunchBookingId = bookings.firstOrNull { b ->
+        b.status == "active" &&
+        todayDateStr >= b.startDate.take(10) &&
+        todayDateStr <= b.endDate.take(10) &&
+        b.includeLunch
+    }?.id
+    val todayDinnerBookingId = bookings.firstOrNull { b ->
+        b.status == "active" &&
+        todayDateStr >= b.startDate.take(10) &&
+        todayDateStr <= b.endDate.take(10) &&
+        b.includeDinner
+    }?.id
 
     // ── Derived display values (fetched from database via API) ───────────────
     val displayName = if (!user?.fullName.isNullOrBlank()) {
@@ -64,7 +121,6 @@ fun HomeScreen(
         ?: user?.fullName?.split(" ")?.filter { it.isNotEmpty() }?.map { it.first() }?.take(2)?.joinToString("")?.ifEmpty { "FH" }
         ?: "FH"
     val totalBalance = wallet?.totalBalance?.let { "৳ %,.2f".format(it) } ?: "৳ 1,450.00"
-    val availableBalance = wallet?.availableBalance?.let { "৳ %,.2f".format(it) } ?: "৳ 1,090.00"
 
     val lunchMenu = todayMeal?.lunch?.items?.joinToString(", ") ?: "Chicken Biryani, Salad, Borhani"
     val lunchTime = todayMeal?.lunch?.let { "Main Canteen · ${it.startTime} – ${it.endTime}" } ?: "Main Canteen · 12:30 – 02:00 PM"
@@ -256,12 +312,6 @@ fun HomeScreen(
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
-                        Text(
-                            text = "Available: $availableBalance", // ← API: wallet.availableBalance
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.8f),
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
                     }
 
                     Button(
@@ -430,8 +480,24 @@ fun HomeScreen(
                 footerLeftText = lunchCutoff,               // ← API: todayMeal.lunch.cutoffTime
                 buttonText = if (isLunchBooked) "Cancel Lunch" else "Book Lunch",
                 onButtonClick = {
-                    isLunchBooked = !isLunchBooked
-                    Toast.makeText(context, if (isLunchBooked) "Lunch Booked" else "Lunch Cancelled", Toast.LENGTH_SHORT).show()
+                    if (isLunchBooked) {
+                        todayLunchBookingId?.let { id ->
+                            viewModel.cancelBooking(id,
+                                onSuccess = {
+                                    isLunchBooked = false
+                                    Toast.makeText(context, "Lunch cancelled", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { err ->
+                                    Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        } ?: run {
+                            isLunchBooked = false
+                            Toast.makeText(context, "Lunch Cancelled", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        onNavigate(Screen.Booking.route)
+                    }
                 }
             )
 
@@ -448,14 +514,107 @@ fun HomeScreen(
                 footerLeftText = dinnerGuestInfo,            // ← API: todayMeal.dinner.maxGuests
                 buttonText = if (isDinnerBooked) "Cancel Dinner" else "Book Dinner",
                 onButtonClick = {
-                    if (!isDinnerBooked) {
-                        onNavigate(Screen.Booking.route)
+                    if (isDinnerBooked) {
+                        todayDinnerBookingId?.let { id ->
+                            viewModel.cancelBooking(id,
+                                onSuccess = {
+                                    isDinnerBooked = false
+                                    Toast.makeText(context, "Dinner cancelled", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { err ->
+                                    Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        } ?: run {
+                            isDinnerBooked = false
+                            Toast.makeText(context, "Dinner Cancelled", Toast.LENGTH_SHORT).show()
+                        }
                     } else {
-                        isDinnerBooked = false
-                        Toast.makeText(context, "Dinner Cancelled", Toast.LENGTH_SHORT).show()
+                        onNavigate(Screen.Booking.route)
                     }
                 }
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Tomorrow Status
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(2.dp, RoundedCornerShape(20.dp))
+                    .clickable { onNavigate(Screen.Booking.route) },
+                color = Color.White,
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFF8FAFC)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Event,
+                                contentDescription = "Tomorrow",
+                                tint = BrandDark,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Tomorrow's Meals",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Ink
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Lunch:",
+                                    fontSize = 11.sp,
+                                    color = Muted
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isTomorrowLunchBooked) "Booked" else "None",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isTomorrowLunchBooked) StatusGreenText else Muted
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Dinner:",
+                                    fontSize = 11.sp,
+                                    color = Muted
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isTomorrowDinnerBooked) "Booked" else "None",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isTomorrowDinnerBooked) StatusGreenText else Muted
+                                )
+                            }
+                        }
+                    }
+                    
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Go to booking",
+                        tint = Color(0xFFCBD5E1),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
     }
 }

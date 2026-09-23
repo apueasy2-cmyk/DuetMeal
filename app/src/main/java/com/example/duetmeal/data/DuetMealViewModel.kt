@@ -117,6 +117,7 @@ class DuetMealViewModel : ViewModel() {
         loadTransactions("all")
         loadHistory("All")
         loadNotices("All")
+        loadBookings() // Pre-fetch all bookings so calendar highlights are ready
     }
 
     // ─── Profile ─────────────────────────────────────────────────────────────
@@ -226,6 +227,14 @@ class DuetMealViewModel : ViewModel() {
 
     // ─── Bookings ────────────────────────────────────────────────────────────
 
+    fun loadBookings() = viewModelScope.launch {
+        repository.getBookings(userId)
+            .onSuccess { _bookings.value = it }
+            .onFailure { error ->
+                android.util.Log.e("DuetMealViewModel", "Failed to load bookings: ${error.message}")
+            }
+    }
+
     fun createBooking(
         request: BookingRequest,
         onSuccess: () -> Unit,
@@ -235,12 +244,32 @@ class DuetMealViewModel : ViewModel() {
         repository.createBooking(request)
             .onSuccess {
                 _apiState.value = ApiState.Idle
-                loadWallet() // Refresh balance after deduction
+                loadWallet()    // Refresh balance after deduction
+                loadBookings()  // Refresh booking highlights
                 onSuccess()
             }
             .onFailure {
                 _apiState.value = ApiState.Error(it.message ?: "Booking failed")
                 onError(it.message ?: "Booking failed")
+            }
+    }
+
+    fun cancelBooking(
+        bookingId: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) = viewModelScope.launch {
+        _apiState.value = ApiState.Loading
+        repository.cancelBooking(bookingId)
+            .onSuccess {
+                _apiState.value = ApiState.Idle
+                loadBookings()  // Refresh calendar highlights
+                loadWallet()    // Refresh balance
+                onSuccess()
+            }
+            .onFailure {
+                _apiState.value = ApiState.Error(it.message ?: "Cancel failed")
+                onError(it.message ?: "Failed to cancel booking")
             }
     }
 }

@@ -164,7 +164,7 @@ fun ProfileScreen(
                             Spacer(modifier = Modifier.height(6.dp))
                             OutlinedButton(
                                 onClick = {
-                                    Toast.makeText(context, "Opening photo picker...", Toast.LENGTH_SHORT).show()
+                                    // Toast removed
                                 },
                                 shape = RoundedCornerShape(50),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),

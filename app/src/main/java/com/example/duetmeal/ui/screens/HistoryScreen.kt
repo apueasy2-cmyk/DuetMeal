@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.NightsStay
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.duetmeal.data.DuetMealViewModel
@@ -37,6 +39,9 @@ fun HistoryScreen(
 ) {
     var selectedFilter by remember { mutableStateOf("All") }
     val filters = listOf("All", "Consumed", "Booked", "Auto-Cancelled")
+    
+    // View mode: "List" or "Calendar"
+    var viewMode by remember { mutableStateOf("List") }
 
     // ── Observe API state ────────────────────────────────────────────────────
     val allItems by viewModel.historyItems.collectAsState()
@@ -76,26 +81,69 @@ fun HistoryScreen(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .shadow(1.dp, CircleShape)
-                        .clip(CircleShape)
-                        .background(Color(0xFFF8FAFC))
-                        .clickable { onBack() },
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.ChevronLeft,
-                        contentDescription = "Back",
-                        tint = Ink
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .shadow(1.dp, CircleShape)
+                            .clip(CircleShape)
+                            .background(Color(0xFFF8FAFC))
+                            .clickable { onBack() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ChevronLeft,
+                            contentDescription = "Back",
+                            tint = Ink
+                        )
+                    }
+                    Column {
+                        Text(text = "Back", fontSize = 11.sp, color = Muted)
+                        Text(text = "Meal History", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink)
+                    }
                 }
-                Column {
-                    Text(text = "Back", fontSize = 11.sp, color = Muted)
-                    Text(text = "Meal History", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink)
+                
+                // View Mode Toggle
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFFF1F5F9))
+                        .padding(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (viewMode == "List") BrandDark else Color.Transparent)
+                            .clickable { viewMode = "List" }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "List",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (viewMode == "List") Color.White else Muted
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (viewMode == "Calendar") BrandDark else Color.Transparent)
+                            .clickable { viewMode = "Calendar" }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "Calendar",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (viewMode == "Calendar") Color.White else Muted
+                        )
+                    }
                 }
             }
 
@@ -133,102 +181,298 @@ fun HistoryScreen(
 
         HorizontalDivider(color = Color(0xFFF1F5F9))
 
-        // History Content List
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-            if (allItems.isEmpty()) {
-                // ── Placeholders while API loads ──────────────────────────────
-                HistorySectionHeader("THIS WEEK")
-                Spacer(modifier = Modifier.height(10.dp))
-                if (selectedFilter == "All" || selectedFilter == "Consumed") {
-                    HistoryItemCard("Aug 10, 2026", "Lunch (Self + 1 Guest)", "Consumed", true, "৳180.00", Icons.Outlined.WbSunny, StatusAmber)
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
-                if (selectedFilter == "All" || selectedFilter == "Auto-Cancelled") {
-                    HistoryItemCard("Aug 10, 2026", "Dinner (Self)", "Auto-Cancelled", false, "৳90.00", Icons.Outlined.NightsStay, BrandDark)
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                HistorySectionHeader("LAST WEEK")
-                Spacer(modifier = Modifier.height(10.dp))
-                if (selectedFilter == "All" || selectedFilter == "Consumed") {
-                    HistoryItemCard("Aug 03, 2026", "Lunch (Self + 2 Guests)", "Consumed", true, "৳270.00", Icons.Outlined.WbSunny, StatusAmber)
-                }
-            } else {
-                // ── API data ──────────────────────────────────────────────────
-                if (thisWeekItems.isNotEmpty()) {
+        if (viewMode == "List") {
+            // History Content List
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                // (Existing logic for placeholders and thisWeekItems/lastWeekItems/olderItems)
+                if (allItems.isEmpty()) {
                     HistorySectionHeader("THIS WEEK")
                     Spacer(modifier = Modifier.height(10.dp))
-                    thisWeekItems.forEach { item ->
-                        HistoryItemCard(
-                            date = formatHistoryDate(item.date),
-                            mealDetails = "${item.mealType.replaceFirstChar { it.uppercase() }} (${item.participants})",
-                            status = item.status.replace("_", "-").replaceFirstChar { it.uppercase() },
-                            isConsumed = item.status == "consumed",
-                            price = "৳%,.2f".format(item.price),
-                            icon = if (item.mealType == "lunch") Icons.Outlined.WbSunny else Icons.Outlined.NightsStay,
-                            iconTint = if (item.mealType == "lunch") StatusAmber else BrandDark
-                        )
+                    if (selectedFilter == "All" || selectedFilter == "Consumed") {
+                        HistoryItemCard("Aug 10, 2026", "Lunch (Self + 1 Guest)", "Consumed", true, "৳180.00", Icons.Outlined.WbSunny, StatusAmber)
                         Spacer(modifier = Modifier.height(10.dp))
                     }
-                }
-
-                if (lastWeekItems.isNotEmpty()) {
+                    if (selectedFilter == "All" || selectedFilter == "Auto-Cancelled") {
+                        HistoryItemCard("Aug 10, 2026", "Dinner (Self)", "Auto-Cancelled", false, "৳90.00", Icons.Outlined.NightsStay, BrandDark)
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
                     HistorySectionHeader("LAST WEEK")
                     Spacer(modifier = Modifier.height(10.dp))
-                    lastWeekItems.forEach { item ->
-                        HistoryItemCard(
-                            date = formatHistoryDate(item.date),
-                            mealDetails = "${item.mealType.replaceFirstChar { it.uppercase() }} (${item.participants})",
-                            status = item.status.replace("_", "-").replaceFirstChar { it.uppercase() },
-                            isConsumed = item.status == "consumed",
-                            price = "৳%,.2f".format(item.price),
-                            icon = if (item.mealType == "lunch") Icons.Outlined.WbSunny else Icons.Outlined.NightsStay,
-                            iconTint = if (item.mealType == "lunch") StatusAmber else BrandDark
-                        )
+                    if (selectedFilter == "All" || selectedFilter == "Consumed") {
+                        HistoryItemCard("Aug 03, 2026", "Lunch (Self + 2 Guests)", "Consumed", true, "৳270.00", Icons.Outlined.WbSunny, StatusAmber)
+                    }
+                } else {
+                    if (thisWeekItems.isNotEmpty()) {
+                        HistorySectionHeader("THIS WEEK")
                         Spacer(modifier = Modifier.height(10.dp))
+                        thisWeekItems.forEach { item ->
+                            HistoryItemCardFromApi(item)
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+                    }
+
+                    if (lastWeekItems.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HistorySectionHeader("LAST WEEK")
+                        Spacer(modifier = Modifier.height(10.dp))
+                        lastWeekItems.forEach { item ->
+                            HistoryItemCardFromApi(item)
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+                    }
+
+                    if (olderItems.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HistorySectionHeader("EARLIER")
+                        Spacer(modifier = Modifier.height(10.dp))
+                        olderItems.forEach { item ->
+                            HistoryItemCardFromApi(item)
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+                    }
+
+                    if (filteredItems.isEmpty()) {
+                        Text(
+                            text = "No records for this filter.",
+                            fontSize = 13.sp,
+                            color = Muted,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
                     }
                 }
-
-                if (olderItems.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HistorySectionHeader("EARLIER")
-                    Spacer(modifier = Modifier.height(10.dp))
-                    olderItems.forEach { item ->
-                        HistoryItemCard(
-                            date = formatHistoryDate(item.date),
-                            mealDetails = "${item.mealType.replaceFirstChar { it.uppercase() }} (${item.participants})",
-                            status = item.status.replace("_", "-").replaceFirstChar { it.uppercase() },
-                            isConsumed = item.status == "consumed",
-                            price = "৳%,.2f".format(item.price),
-                            icon = if (item.mealType == "lunch") Icons.Outlined.WbSunny else Icons.Outlined.NightsStay,
-                            iconTint = if (item.mealType == "lunch") StatusAmber else BrandDark
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-                }
-
-                if (filteredItems.isEmpty()) {
-                    Text(
-                        text = "No records for this filter.",
-                        fontSize = 13.sp,
-                        color = Muted,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
+                Spacer(modifier = Modifier.height(100.dp))
             }
-
-            Spacer(modifier = Modifier.height(100.dp))
+        } else {
+            // Calendar View
+            HistoryCalendarView(
+                filteredItems = filteredItems
+            )
         }
     }
 }
 
+@Composable
+fun HistoryCalendarView(filteredItems: List<HistoryItem>) {
+    var currentCalendar by remember { mutableStateOf(java.util.Calendar.getInstance()) }
+    val currentYear = currentCalendar.get(java.util.Calendar.YEAR)
+    val currentMonthIndex = currentCalendar.get(java.util.Calendar.MONTH) // 0-based
+
+    val monthName = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).format(currentCalendar.time)
+
+    val maxDaysInMonth = remember(currentYear, currentMonthIndex) {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, currentYear)
+            set(Calendar.MONTH, currentMonthIndex)
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+        cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+    }
+
+    val firstDayOfWeekOffset = remember(currentYear, currentMonthIndex) {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, currentYear)
+            set(Calendar.MONTH, currentMonthIndex)
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+        val dow = cal.get(Calendar.DAY_OF_WEEK)
+        if (dow == Calendar.SUNDAY) 6 else dow - 2
+    }
+
+    val prevMonthDaysCount = remember(currentYear, currentMonthIndex) {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, currentYear)
+            set(Calendar.MONTH, currentMonthIndex - 1)
+            set(Calendar.DAY_OF_MONTH, 1)
+        }
+        cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+    }
+
+    var selectedDateStr by remember { mutableStateOf("") }
+    
+    val todayDateStr = remember {
+        SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(Calendar.getInstance().time)
+    }
+
+    val itemsForSelectedDate = remember(selectedDateStr, filteredItems) {
+        filteredItems.filter { it.date == selectedDateStr }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        // Month Navigation
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = monthName, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Row {
+                IconButton(
+                    onClick = {
+                        val newCal = currentCalendar.clone() as Calendar
+                        newCal.add(Calendar.MONTH, -1)
+                        currentCalendar = newCal
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Filled.ChevronLeft, contentDescription = "Prev", tint = Ink)
+                }
+                IconButton(
+                    onClick = {
+                        val newCal = currentCalendar.clone() as Calendar
+                        newCal.add(Calendar.MONTH, 1)
+                        currentCalendar = newCal
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Filled.ChevronRight, contentDescription = "Next", tint = Ink)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Days Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach { day ->
+                Text(
+                    text = day,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Muted,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+
+        val prevMonthLeadingDays = ((prevMonthDaysCount - firstDayOfWeekOffset + 1)..prevMonthDaysCount).map { Pair(it, false) }
+        val currentMonthGridDays = (1..maxDaysInMonth).map { Pair(it, true) }
+        val totalCellsSoFar = prevMonthLeadingDays.size + currentMonthGridDays.size
+        val trailingDaysCount = if (totalCellsSoFar % 7 != 0) 7 - (totalCellsSoFar % 7) else 0
+        val nextMonthTrailingDays = (1..trailingDaysCount).map { Pair(it, false) }
+
+        val allMonthDays = prevMonthLeadingDays + currentMonthGridDays + nextMonthTrailingDays
+        val rows = allMonthDays.chunked(7)
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            rows.forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    row.forEach { (dayNum, isCurrentMonth) ->
+                        val dateStr = if (isCurrentMonth) String.format("%04d-%02d-%02d", currentYear, currentMonthIndex + 1, dayNum) else ""
+                        
+                        val dayItems = if (isCurrentMonth) filteredItems.filter { it.date == dateStr } else emptyList()
+                        
+                        // Option 2: Color whole background
+                        val bgColor = when {
+                            dayItems.isEmpty() -> Color.Transparent
+                            dayItems.any { it.status == "consumed" } -> StatusGreenBg
+                            dayItems.any { it.status == "booked" } -> Color(0xFFFFF7ED) // Light amber
+                            dayItems.any { it.status == "auto_cancelled" } -> StatusRedBg
+                            else -> Color.Transparent
+                        }
+
+                        val textColor = when {
+                            !isCurrentMonth -> Color.LightGray
+                            dayItems.any { it.status == "consumed" } -> StatusGreenText
+                            dayItems.any { it.status == "booked" } -> StatusAmberText
+                            dayItems.any { it.status == "auto_cancelled" } -> StatusRedText
+                            else -> Ink
+                        }
+
+                        val isSelected = isCurrentMonth && dateStr == selectedDateStr
+                        val isToday = isCurrentMonth && dateStr == todayDateStr
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(bgColor)
+                                .border(
+                                    width = if (isSelected || isToday) 2.dp else 0.dp,
+                                    color = when {
+                                        isSelected -> BrandDark
+                                        isToday -> Color(0xFF10B981) // Green
+                                        else -> Color.Transparent
+                                    },
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable(enabled = isCurrentMonth) {
+                                    selectedDateStr = dateStr
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = dayNum.toString(),
+                                fontSize = 13.sp,
+                                fontWeight = if (dayItems.isNotEmpty() || isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = textColor
+                            )
+                        }
+                    }
+                    if (row.size < 7) {
+                        repeat(7 - row.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // Show details for selected date
+        if (selectedDateStr.isNotEmpty()) {
+            HistorySectionHeader("MEALS ON ${formatHistoryDate(selectedDateStr).uppercase()}")
+            Spacer(modifier = Modifier.height(10.dp))
+            if (itemsForSelectedDate.isEmpty()) {
+                Text("No meals recorded for this date.", fontSize = 13.sp, color = Muted)
+            } else {
+                itemsForSelectedDate.forEach { item ->
+                    HistoryItemCardFromApi(item)
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+        } else if (filteredItems.isEmpty()) {
+            Text("No records match your filters in this month.", fontSize = 13.sp, color = Muted)
+        }
+        
+        Spacer(modifier = Modifier.height(100.dp))
+    }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+@Composable
+fun HistoryItemCardFromApi(item: HistoryItem) {
+    HistoryItemCard(
+        date = formatHistoryDate(item.date),
+        mealDetails = "${item.mealType.replaceFirstChar { it.uppercase() }} (${item.participants})",
+        status = item.status.replace("_", "-").replaceFirstChar { it.uppercase() },
+        isConsumed = item.status == "consumed",
+        price = "৳%,.2f".format(item.price),
+        icon = if (item.mealType == "lunch") Icons.Outlined.WbSunny else Icons.Outlined.NightsStay,
+        iconTint = if (item.mealType == "lunch") StatusAmber else BrandDark
+    )
+}
 
 private fun formatHistoryDate(dateStr: String): String {
     return try {
