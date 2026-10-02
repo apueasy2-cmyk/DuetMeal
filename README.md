@@ -1,65 +1,88 @@
-# 🍽️ DUET Meal App
-> A comprehensive, modern meal management system for Dhaka University of Engineering & Technology (DUET).
+<div align="center">
+  <img src="backend with api/admin/assets/duet_logo.png" alt="DUET Meal Logo" width="120" />
 
-DUET Meal is a full-stack application consisting of a sleek **Android App (Kotlin/Jetpack Compose)** and a robust **PHP/MySQL Backend**. It is designed to modernize and simplify canteen management, wallet recharges, and meal booking for students, staff, and canteen administrators.
+  # 🍽️ DUET Meal App
+  **A Next-Generation Canteen Management & Digital Wallet System**
 
----
-
-## ✨ Features
-
-### 📱 Android Application (User Facing)
-- **Modern UI/UX**: Built entirely with Jetpack Compose using a beautiful Sage Green and Muted Gold brand identity.
-- **Digital Wallet**: Real-time balance tracking, quick recharge requests, and secure transaction history.
-- **Smart Booking**: One-tap meal booking for lunch and dinner, including guest meal support with cutoff time enforcement.
-- **Live Menu**: Check the daily menu for the canteen directly from the app.
-- **Notices**: Real-time announcements from the canteen administration.
-- **User Profile**: Track your unique ID, email, and personal stats.
-
-### 💻 Web Dashboard (Admin Facing)
-- **Comprehensive Analytics**: See today's total recharge requests, meal bookings, bazaar costs, and tomorrow's meal projections.
-- **Wallet Management**: Approve or reject digital recharge requests with a single click.
-- **Menu & Notice Control**: Broadcast notices to all users and update daily menus effortlessly.
-- **Ledger & Settlement**: Daily automated ledger auditing to calculate canteen profit/loss and total cash at hand.
-- **Settings Configurator**: Dynamically change meal rates, service availability, cutoff times, and dining charges.
+  [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+  [![Android](https://img.shields.io/badge/Android-Kotlin_Jetpack_Compose-3DDC84?logo=android&logoColor=white)](#)
+  [![Backend](https://img.shields.io/badge/Backend-PHP_8.0_MySQL-777BB4?logo=php&logoColor=white)](#)
+  
+  <p align="center">
+    Built for Dhaka University of Engineering & Technology (DUET)
+  </p>
+</div>
 
 ---
 
-## 🛠️ Technology Stack
+## 📖 Overview
 
-**Frontend (Android):**
-- Kotlin
-- Jetpack Compose
-- Retrofit (Network Requests)
-- Coroutines (Asynchronous Programming)
-- Material 3 Design System
+The **DUET Meal App** is a comprehensive full-stack ecosystem designed to digitize and streamline dormitory canteen operations. It bridges the gap between canteen administrators and users through a seamless, real-time platform.
 
-**Backend (API & Web Dashboard):**
-- PHP 8+ (Vanilla PHP with PDO)
-- MySQL Database
-- Tailwind CSS (Admin Dashboard Styling)
-- Lucide Icons
+This repository contains the complete mono-repo for the project:
+1. **The Android Application**: A modern, native Android app built with Kotlin and Jetpack Compose.
+2. **The Cloud API & Admin Dashboard**: A robust, lightweight PHP/MySQL backend serving both the RESTful API and a comprehensive web-based management portal.
 
 ---
 
-## 🚀 Deployment & Installation
+## ✨ Core Capabilities
 
-### 1. Backend Setup
-The backend is designed to be easily deployed to Apache servers (like XAMPP or AlwaysData) and is fully portable.
-1. Upload the `backend with api/` folder to your server's web root (`www` or `htdocs`).
-2. Import the `db.sql` file into your MySQL Database.
-3. The `config.php` file automatically detects if it is running locally or in production and switches credentials dynamically!
+### 📱 For Users (Android App)
+| Feature | Description |
+|---------|-------------|
+| **💳 Digital Wallet** | Real-time balance tracking, in-app recharge requests, and full transaction ledgers. |
+| **📅 Smart Booking** | Automated 1-tap meal booking for Lunch and Dinner. Enforces real-time cutoff policies. |
+| **👥 Guest Meals** | Easily add guest meals to your daily booking directly from the dashboard. |
+| **📢 Live Notices** | Push-like announcements and dynamic daily menus updated by administrators. |
+| **🎨 Premium UI** | A fluid, gesture-driven interface designed with Material 3 in Sage Green & Muted Gold. |
 
-### 2. Android App Setup
+### 🛠️ For Administrators (Web Dashboard)
+| Feature | Description |
+|---------|-------------|
+| **📊 Real-time Analytics** | See today's total revenue, meal counts, bazaar costs, and tomorrow's projections at a glance. |
+| **💸 Wallet Management** | One-click approval/rejection of student recharge requests with automated ledger syncing. |
+| **📈 Automated Audits** | Automated daily settlement cron jobs that calculate net profit, total costs, and cash at hand. |
+| **⚙️ Dynamic Configurator** | Instantly change meal rates, service availability, and operational cutoff times from the cloud. |
+
+---
+
+## 🏗️ System Architecture & Tech Stack
+
+The system is built on a highly portable, decoupled architecture.
+
+- **Mobile Client**: Native Android (Kotlin, Jetpack Compose, Coroutines, Retrofit, ViewModel).
+- **RESTful API**: Vanilla PHP 8+ with PDO. Stateless, secure, and lightning-fast.
+- **Database**: Relational MySQL with ACID-compliant transactions (InnoDB).
+- **Admin Portal**: HTML5, Tailwind CSS, Vanilla JS, Lucide Icons.
+
+---
+
+## 🚀 Getting Started
+
+### 1️⃣ Backend Setup (Local or Cloud)
+The backend is portable and runs on any standard Apache server (XAMPP, AlwaysData, cPanel).
+1. Clone the repository to your server's web root (`www` or `htdocs`).
+2. Import the `backend with api/db.sql` file into your MySQL Database.
+3. *Zero Config required:* The `config/config.php` dynamically detects your environment and switches credentials automatically.
+
+### 2️⃣ Android App Setup
 1. Open the `android app/` folder in **Android Studio**.
-2. Open `ApiConfig.kt` and ensure `BASE_URL` points to your active server IP or domain.
-3. Sync Gradle and hit Run!
+2. Navigate to `ApiConfig.kt` and ensure the `BASE_URL` points to your backend IP or live domain.
+3. Sync Gradle and hit **Run**.
 
 ---
 
-## 🎨 Design System
-The app features a custom color palette derived from the legacy DUET brand identity:
-- **Brand Primary (Deep Forest Green):** `#226028`
-- **Brand Dark:** `#184D1C`
-- **Brand Light (Sage Green):** `#A5C49B`
-- **Brand Gold (Accent):** `#DFB651`
-- **Surface Background:** `#F7FBF6`
+## 🎨 Brand Identity
+
+The interface utilizes a sophisticated color system derived from the DUET institutional legacy:
+
+- **Deep Forest Green:** `#226028` (Primary)
+- **Muted Gold:** `#DFB651` (Accent)
+- **Sage Green:** `#A5C49B` (Secondary)
+- **Surface Tint:** `#F7FBF6` (Backgrounds)
+
+---
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE).
