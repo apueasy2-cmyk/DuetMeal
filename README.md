@@ -15,6 +15,29 @@
 
 ---
 
+## 🌟 What Makes DUET Meal Different? (Our Innovations)
+
+Most university systems are built just to record data. We built DUET Meal to be **smart, automated, and mathematically perfect.** Here is what makes our system unique:
+
+- **The "Zero-Trust" Architecture:** Usually, mobile apps calculate costs and send them to the server. This is dangerous! In our app, the Android phone is just a "display screen". Every single calculation—from checking if a student has enough money, to enforcing the 12:00 PM cutoff time—happens deep inside our secure server where no one can tamper with it.
+- **The "Automated Accountant" (Daily Ledger):** Managing canteen finances by hand is a nightmare. We built an invisible robot (a server Cron Job) that wakes up at 11:59 PM every single night. It automatically sweeps the entire database, calculates the total profit, total costs, and cash-in-hand, and securely files a financial report for the administration. 
+- **Dynamic Pricing Engine:** Instead of hardcoding meal prices, our dashboard allows the administration to instantly change flat rates, or even apply dynamic percentage-based dining charges (e.g., a 15% service fee) that instantly take effect across the entire university without needing to update the Android app!
+
+---
+
+## 🛡️ Enterprise-Grade Security
+
+We know that handling student money requires the highest level of trust. We engineered the system to be bulletproof so that money can never be lost or stolen.
+
+| Security Feature | Simple Explanation |
+|------------------|--------------------|
+| **Mathematical Double-Spending Protection** | What happens if a student tries to book two meals at the exact same millisecond with a low balance? Our database uses strict **"Pessimistic Locking"**. It locks the wallet file, forces the requests to form a queue, and stops the second request from going through. |
+| **All-or-Nothing Transactions** | When booking a meal, the system has to deduct money *and* write a ticket. If the server crashes in the middle, our **"Atomic Transactions"** instantly rewind time. You will never see money deducted without a ticket being issued! |
+| **Hacker-Proof Data (SQL Injection Guard)** | We use strict "Prepared Statements". This means the server treats all user input strictly as harmless text, making it mathematically impossible for hackers to inject malicious code into our database. |
+| **Military-Grade Passwords** | We use the **BCrypt algorithm**, which encrypts passwords with randomized "salt" strings. Even if someone stole the database, the passwords are mathematically impossible to reverse-engineer. |
+
+---
+
 ## 📖 Overview
 
 The **DUET Meal App** is a comprehensive full-stack ecosystem designed to digitize and streamline dormitory canteen operations. It bridges the gap between canteen administrators and users through a seamless, real-time platform.
