@@ -19,8 +19,9 @@
 
 Most university systems are built just to record data. We built DUET Meal to be **smart, automated, and mathematically perfect.** Here is what makes our system unique:
 
+- **Lightning-Fast Caching (Responsive UI):** Slow internet? No problem. The Android app features an intelligent caching system. It remembers your previous data and loads the UI instantly while quietly fetching updates in the background. The app feels incredibly fast and responsive, no matter your connection speed.
+- **Disaster-Proof Ledger Audit:** Managing canteen finances by hand is a nightmare, and losing data is a disaster. We built an invisible robot (a server Cron Job) that wakes up at 11:59 PM every single night. It automatically sweeps the entire database, calculates the total profit, total costs, and cash-in-hand, and securely archives a financial report. Even if the main transactions are accidentally deleted, your financial history is safely backed up day-by-day.
 - **The "Zero-Trust" Architecture:** Usually, mobile apps calculate costs and send them to the server. This is dangerous! In our app, the Android phone is just a "display screen". Every single calculation—from checking if a student has enough money, to enforcing the 12:00 PM cutoff time—happens deep inside our secure server where no one can tamper with it.
-- **The "Automated Accountant" (Daily Ledger):** Managing canteen finances by hand is a nightmare. We built an invisible robot (a server Cron Job) that wakes up at 11:59 PM every single night. It automatically sweeps the entire database, calculates the total profit, total costs, and cash-in-hand, and securely files a financial report for the administration. 
 - **Dynamic Pricing Engine:** Instead of hardcoding meal prices, our dashboard allows the administration to instantly change flat rates, or even apply dynamic percentage-based dining charges (e.g., a 15% service fee) that instantly take effect across the entire university without needing to update the Android app!
 
 ---
