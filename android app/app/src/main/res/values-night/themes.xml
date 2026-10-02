@@ -1,0 +1,12 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Night theme - same as day since Compose handles its own theming -->
+    <style name="Theme.DUETMEAL" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">#1A4731</item>
+        <item name="colorPrimaryVariant">#1A4731</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#F0C040</item>
+        <item name="colorSecondaryVariant">#F0C040</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="android:statusBarColor">#1A4731</item>
+    </style>
+</resources>

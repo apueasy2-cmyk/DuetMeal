@@ -1,0 +1,1 @@
+<?php require 'config/Database.php'; $pdo = Database::getConnection(); $pdo->exec("UPDATE system_settings SET setting_value = 'variable' WHERE setting_key = 'dining_charge_type'"); $pdo->exec("UPDATE system_settings SET setting_value = '5.00' WHERE setting_key = 'dining_charge_percentage'"); echo 'Updated';

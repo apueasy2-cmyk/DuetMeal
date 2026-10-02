@@ -1,0 +1,16 @@
+# IDE files
+.idea/
+.vscode/
+
+# Build artifacts
+android app/build/
+android app/app/build/
+android app/.gradle/
+android app/local.properties
+
+# Logs and temps
+*.log
+deploy.zip
+unzip_and_import.php
+deploy_to_cloud.py
+deploy_alwaysdata.py

@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Allow direct file access
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Route /admin/api/* to admin/api/index.php
+    RewriteRule ^admin/api/(.*)$ admin/api/index.php [QSA,L]
+    RewriteRule ^admin/api$ admin/api/index.php [QSA,L]
+
+    # Route /user/* to user/index.php
+    RewriteRule ^user/(.*)$ user/index.php [QSA,L]
+    RewriteRule ^user$ user/index.php [QSA,L]
+</IfModule>
